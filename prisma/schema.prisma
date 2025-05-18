@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int        @id @default(autoincrement())
+  email            String     @unique
+  password         String
+  name             String
+  username         String     @unique
+  role             String     @default("buyer")
+  isVerified       Boolean    @default(false)
+  confirmationCode String?
+  cart             Cart[]
+  reviews          Review[]
+  wishlist         Wishlist[]
+  orders           Order[]
+}
+
+model Product {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String
+  price       Float
+  image       String
+  stock       Int
+  categoryId  Int
+  createdAt   DateTime   @default(now())
+  cartItems   Cart[]
+  category    Category   @relation(fields: [categoryId], references: [id])
+  reviews     Review[]
+  wishlists   Wishlist[]
+  orders      Order[]
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String
+  products Product[]
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  userId    Int
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  quantity  Int      @default(1)
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  @@unique([userId, productId])
+}
+
+model Wishlist {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+  @@unique([userId, productId])
+}
+
+model Order {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  amount    Float
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime? @updatedAt
+
+  quantity  Int      @default(1)
+
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  payment   Payment? // ✅ Add this line for reverse relation
+}
+
+
+
+model Payment {
+  id                Int      @id @default(autoincrement())
+  orderId           Int      @unique
+  razorpayOrderId   String
+  razorpayPaymentId String?
+  receipt           String?
+  amount            Float
+  status            String   @default("created") // 'created', 'paid', 'failed'
+  createdAt         DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+}
