@@ -9,6 +9,8 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.sendConfirmationEmail = async (email, confirmationCode) => {
+  const confirmationUrl = `${process.env.BASE_URL}/confirm/${confirmationCode}`;
+
   const mailOptions = {
     from: process.env.GMAIL_USER,
     to: email,
@@ -16,8 +18,9 @@ exports.sendConfirmationEmail = async (email, confirmationCode) => {
     html: `
       <h3>Welcome!</h3>
       <p>Click the link below to verify your email:</p>
-      <a href="http://localhost:3000/confirm/${confirmationCode}">Verify Email</a>
+      <a href="${confirmationUrl}">Verify Email</a>
     `,
   };
+
   await transporter.sendMail(mailOptions);
 };
