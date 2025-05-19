@@ -1,10 +1,7 @@
-// index.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const serverless = require('serverless-http');
-const prisma = require('./prisma/prismaclient');
-const { seedAdminUser } = require('./prisma/prismaclient'); // destructure seeding function
+const { prisma, seedAdminUser } = require('./prisma/prismaclient'); // Destructure properly
 const userRoutes = require('./src/routes/userroute');
 const productRoutes = require('./src/routes/productroutes');
 const categoryRoutes = require('./src/routes/categoryruotes');
@@ -15,31 +12,40 @@ const orderRoutes = require('./src/routes/orderroutes');
 
 const app = express();
 
-app.use(cors({ origin: '*', credentials: true })); // Change origin before prod
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // Consider cloud storage for production
+app.use('/uploads', express.static('uploads'));
 
-// Seed Admin only if not in production
-if (process.env.NODE_ENV !== 'production') {
-  seedAdminUser(prisma).catch((e) => {
-    console.error('Seeding admin user failed:', e);
-  });
-}
+// Seed Admin User (handle errors)
+seedAdminUser(prisma).catch((err) => {
+  console.error('Error seeding admin user:', err);
+});
 
-// Middleware for logging requests
+// Routes
+app.use('/', userRoutes); 
+app.use(productRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/cart', cartRoutes);
+
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
-// Routes
-app.use('/', userRoutes);
-app.use(productRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/cart', cartRoutes);
 app.use('/wishlist', wishlist);
 app.use('/api/reviews', reviewRoutes);
 app.use('/orders', orderRoutes);
 
-// Export as serverless handler for Vercel
-module.exports.handler = serverless(app);
+app.get('/', (req, res) => {
+  res.json({ message: 'Server is running' });
+});
+
+const PORT = process.env.PORT || 3000;
+
+// If you have a connectDB function (for example, to connect to MongoDB), define or import it.
+// If you don't need it, just listen directly:
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
+});
+
+module.exports = app;
