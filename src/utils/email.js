@@ -9,7 +9,6 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.sendConfirmationEmail = async (email, confirmationCode) => {
-  // ✅ Hardcoded production URL
   const confirmationUrl = `https://frescobackend.onrender.com/confirm/${confirmationCode}`;
 
   const mailOptions = {
@@ -23,5 +22,11 @@ exports.sendConfirmationEmail = async (email, confirmationCode) => {
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Confirmation email sent to ${email}`);
+  } catch (error) {
+    console.error(`Error sending email to ${email}:`, error);
+    throw new Error('Failed to send confirmation email');
+  }
 };

@@ -7,26 +7,50 @@ const { sendConfirmationEmail } = require('../utils/email');
 const prisma = new PrismaClient();
 
 exports.registerUser = async ({ email, password, name, role = 'buyer', username }) => {
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) throw new Error('User already exists');
+  try {
+    console.log('Trying to register:', email);
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const confirmationCode = crypto.randomBytes(20).toString('hex');
-  const userName = username || email.split('@')[0];
+    // Case-insensitive check for existing user by email
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: email,
+          mode: 'insensitive',
+        },
+        isVerified: true,  // <-- only verified users count as existing users
+      },
+    });
+    
 
-  const newUser = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      name,
-      username: userName,
-      role,
-      confirmationCode,
-    },
-  });
+    if (existingUser) {
+      console.log('User already exists:', existingUser.email);
+      throw new Error('User already exists');
+    }
 
-  await sendConfirmationEmail(email, confirmationCode);
-  return newUser;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const confirmationCode = crypto.randomBytes(20).toString('hex');
+    const userName = username || email.split('@')[0];
+
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        username: userName,
+        role,
+        confirmationCode,
+        isVerified: false,
+      },
+    });
+
+    await sendConfirmationEmail(email, confirmationCode);
+
+    console.log('New user created:', newUser.email);
+    return newUser;
+  } catch (error) {
+    console.error('Error in registerUser:', error.message);
+    throw error;
+  }
 };
 
 exports.verifyUser = async (confirmationCode) => {
@@ -42,7 +66,15 @@ exports.verifyUser = async (confirmationCode) => {
 };
 
 exports.loginUser = async ({ email, password }) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findFirst({
+    where: {
+      email: {
+        equals: email,
+        mode: 'insensitive',
+      },
+    },
+  });
+
   if (!user) throw new Error('User not found');
   if (!user.isVerified) throw new Error('Verify your email first');
 
