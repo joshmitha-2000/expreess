@@ -9,7 +9,8 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.sendConfirmationEmail = async (email, confirmationCode) => {
-  const confirmationUrl = `${process.env.BASE_URL}/confirm/${confirmationCode}`;
+  // ✅ Hardcoded production URL
+  const confirmationUrl = `https://frescobackend.onrender.com/confirm/${confirmationCode}`;
 
   const mailOptions = {
     from: process.env.GMAIL_USER,
