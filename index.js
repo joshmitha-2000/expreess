@@ -3,7 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const prisma = require('./prisma/prismaclient'); // Prisma client
-const seedAdminUser = require('./prisma/prismaclient'); // Admin seeding
+const seedAdminUser = require('./prisma/prismaclient'); 
+const Stripe = require('stripe');// Admin seeding
 
 const userRoutes = require('./src/routes/userroute');
 const productRoutes = require('./src/routes/productroutes');
@@ -12,6 +13,8 @@ const cartRoutes = require('./src/routes/cartruoter');
 const wishlistRoutes = require('./src/routes/wishlistroute');
 const reviewRoutes = require('./src/routes/reviewroutes');
 const orderRoutes = require('./src/routes/orderroutes');
+const paymentRoutes = require('./src/routes/paymentroutes');
+
 
 const app = express();
 
@@ -51,6 +54,8 @@ app.use('/cart', cartRoutes);
 app.use('/wishlist', wishlistRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/orders', orderRoutes);
+app.use('/payment', paymentRoutes);
+
 
 // Seed Admin (optional, wrap in async if needed)
 seedAdminUser(prisma);

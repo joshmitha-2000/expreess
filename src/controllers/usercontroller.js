@@ -23,28 +23,21 @@ exports.confirmEmail = async (req, res) => {
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    // ✅ Destructure both token and user from loginUser
     const { token, user } = await authService.loginUser({ email, password });
 
-    // ✅ Send both token and userId
-    res.status(200).json({ token, userId: user.id, email: user.email, message: 'Login successful' });
+    console.log('Login response user email:', user.email);  // Debug email presence
+
+    res.status(200).json({ 
+      token, 
+      userId: user.id, 
+      email: user.email, 
+      username: user.username,
+      message: 'Login successful' 
+    });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 };
-
-// exports.login = async (req, res) => {
-//   const { email, password } = req.body;
-//   try {
-//     const { token, user } = await authService.loginUser({ email, password });
-
-//     console.log("Login response:", { token, userId: user.id });  // << Add this to verify what is sent
-
-//     res.status(200).json({ token, userId: user.id, message: 'Login successful' });
-//   } catch (err) {
-//     res.status(400).json({ message: err.message });
-//   }
-// };
 
 exports.profile = async (req, res) => {
   try {

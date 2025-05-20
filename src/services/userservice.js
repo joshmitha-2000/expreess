@@ -10,17 +10,15 @@ exports.registerUser = async ({ email, password, name, role = 'buyer', username 
   try {
     console.log('Trying to register:', email);
 
-    // Case-insensitive check for existing user by email
     const existingUser = await prisma.user.findFirst({
       where: {
         email: {
           equals: email,
           mode: 'insensitive',
         },
-        isVerified: true,  // <-- only verified users count as existing users
+        isVerified: true,
       },
     });
-    
 
     if (existingUser) {
       console.log('User already exists:', existingUser.email);
@@ -87,7 +85,17 @@ exports.loginUser = async ({ email, password }) => {
     { expiresIn: '24h' }
   );
 
-  return { token, user };
+  // Return only safe user info, avoid sending password or confirmationCode
+  return { 
+    token, 
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      name: user.name,
+      role: user.role
+    }
+  };
 };
 
 exports.getUserProfile = async (userId) => {

@@ -1,44 +1,75 @@
-const prisma = require('../prisma/client');
-const Razorpay = require('razorpay');
+const { PrismaClient } = require('@prisma/client');
+const stripe = require('../utils/stripe');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const prisma = new PrismaClient();
 
-const createRazorpayOrder = async (amount) => {
-  const options = {
-    amount: amount * 100,
-    currency: 'INR',
-    receipt: `receipt_order_${Date.now()}`,
-  };
-  return await razorpay.orders.create(options);
-};
+const createPayment = async (userId, productId, quantity = 1) => {
+  const product = await prisma.product.findUnique({ where: { id: productId } });
 
-const savePaymentDetails = async (orderId, razorpayOrderId, amount, receipt) => {
-  return await prisma.payment.create({
+  if (!product || product.stock < quantity) {
+    throw new Error('Product not available or out of stock');
+  }
+
+  const amount = product.price * quantity;
+
+  // Create Order in DB
+  const order = await prisma.order.create({
     data: {
-      orderId,
-      razorpayOrderId,
+      userId,
+      productId,
       amount,
-      receipt,
+      quantity,
+      status: 'PENDING',
+    },
+  });
+
+  // Create Stripe PaymentIntent
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(amount * 100), // amount in paise
+    currency: 'inr',
+    metadata: { orderId: order.id.toString() },
+  });
+
+  // Save payment info in DB
+  const payment = await prisma.payment.create({
+    data: {
+      orderId: order.id,
+      razorpayOrderId: paymentIntent.id, // using this field for stripe paymentIntent id
+      amount,
       status: 'created',
     },
   });
+
+  return {
+    clientSecret: paymentIntent.client_secret,
+    orderId: order.id,
+  };
 };
 
-const updatePaymentStatus = async (razorpayOrderId, razorpayPaymentId) => {
-  return await prisma.payment.update({
-    where: { razorpayOrderId },
-    data: {
-      razorpayPaymentId,
-      status: 'paid',
-    },
+const updatePaymentStatus = async (paymentIntentId, status) => {
+  const payment = await prisma.payment.update({
+    where: { razorpayOrderId: paymentIntentId },
+    data: { status },
   });
+
+  // Update order status accordingly
+  if (status === 'succeeded') {
+    await prisma.order.update({
+      where: { id: payment.orderId },
+      data: { status: 'COMPLETED' },
+    });
+  } else if (status === 'failed') {
+    await prisma.order.update({
+      where: { id: payment.orderId },
+      data: { status: 'FAILED' },
+    });
+  }
+
+  return payment;
 };
 
 module.exports = {
-  createRazorpayOrder,
-  savePaymentDetails,
+  createPayment,
   updatePaymentStatus,
 };
+

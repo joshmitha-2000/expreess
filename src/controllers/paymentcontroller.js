@@ -1,40 +1,35 @@
-const PaymentService = require('../services/paymentservice');
+const paymentService = require('../services/paymentsrvice');
 
-const initiatePaymentHandler = async (req, res) => {
-  const { orderId, amount } = req.body;
-
+const createPayment = async (req, res) => {
   try {
-    const razorpayOrder = await PaymentService.createRazorpayOrder(amount);
-    await PaymentService.savePaymentDetails(
-      orderId,
-      razorpayOrder.id,
-      amount,
-      razorpayOrder.receipt
-    );
+    const userId = req.user.id; // assuming user is authenticated and id is in req.user
+    const { productId, quantity } = req.body;
 
-    res.json({
-      razorpayOrderId: razorpayOrder.id,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-      receipt: razorpayOrder.receipt,
-    });
+    const paymentData = await paymentService.createPayment(userId, productId, quantity);
+
+    res.json(paymentData);
   } catch (error) {
-    res.status(500).json({ error: 'Payment initiation failed', details: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
-const confirmPaymentHandler = async (req, res) => {
-  const { razorpayOrderId, razorpayPaymentId } = req.body;
-
+const confirmPayment = async (req, res) => {
   try {
-    const updatedPayment = await PaymentService.updatePaymentStatus(
-      razorpayOrderId,
-      razorpayPaymentId
-    );
-    res.json({ success: true, payment: updatedPayment });
+    const { paymentIntentId, status } = req.body;
+
+    if (!['succeeded', 'failed'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const payment = await paymentService.updatePaymentStatus(paymentIntentId, status);
+
+    res.json({ message: 'Payment status updated', payment });
   } catch (error) {
-    res.status(500).json({ error: 'Payment confirmation failed', details: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
-module.exports = { initiatePaymentHandler, confirmPaymentHandler };
+module.exports = {
+  createPayment,
+  confirmPayment,
+};
