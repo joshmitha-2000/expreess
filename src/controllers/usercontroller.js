@@ -27,7 +27,7 @@ exports.login = async (req, res) => {
     const { token, user } = await authService.loginUser({ email, password });
 
     // ✅ Send both token and userId
-    res.status(200).json({ token, userId: user.id, message: 'Login successful' });
+    res.status(200).json({ token, userId: user.id, email: user.email, message: 'Login successful' });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
