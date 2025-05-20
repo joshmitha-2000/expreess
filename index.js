@@ -15,6 +15,10 @@ const orderRoutes = require('./src/routes/orderroutes');
 
 const app = express();
 
+
+app.use(express.json());  
+
+
 // Middlewares
 const allowedOrigins = [
   'http://localhost:5173', // for local dev
