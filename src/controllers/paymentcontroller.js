@@ -2,7 +2,7 @@ const paymentService = require('../services/paymentsrvice');
 
 const createPayment = async (req, res) => {
   try {
-    const userId = req.user.id; // assuming user is authenticated and id is in req.user
+    const userId = parseInt(req.params.userId);// user from authenticated middleware
     const { productId, quantity } = req.body;
 
     const paymentData = await paymentService.createPayment(userId, productId, quantity);
