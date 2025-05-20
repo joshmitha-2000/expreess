@@ -2,52 +2,33 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function getWishlist(userId) {
-  return prisma.wishlist.findMany({
+  return await prisma.wishlist.findMany({
     where: { userId },
-    include: {
-      product: {
-        include: {
-          category: true,
-          reviews: true,
-        },
-      },
-    },
+    include: { product: true },
   });
 }
 
 async function addToWishlist(userId, productId) {
-  if (!userId || !productId) {
-    throw new Error('userId and productId are required');
-  }
-
-  // Check if wishlist item already exists
-  const existing = await prisma.wishlist.findUnique({
-    where: {
-      userId_productId: {
+  try {
+    return await prisma.wishlist.create({
+      data: {
         userId,
         productId,
       },
-    },
-  });
-
-  if (existing) {
-    return existing; // already in wishlist, return existing
+      include: {
+        product: true,
+      },
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      throw new Error('Product already in wishlist');
+    }
+    throw error;
   }
-
-  return prisma.wishlist.create({
-    data: {
-      userId,
-      productId,
-    },
-  });
 }
 
 async function removeFromWishlist(userId, productId) {
-  if (!userId || !productId) {
-    throw new Error('userId and productId are required');
-  }
-
-  return prisma.wishlist.delete({
+  return await prisma.wishlist.delete({
     where: {
       userId_productId: {
         userId,
@@ -62,4 +43,3 @@ module.exports = {
   addToWishlist,
   removeFromWishlist,
 };
-

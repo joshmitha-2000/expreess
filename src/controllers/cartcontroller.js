@@ -10,12 +10,13 @@ async function addToCart(req, res) {
     }
 
     const addedItem = await cartService.addToCart(userId, productId, quantity);
-    res.status(200).json(addedItem);
+    res.status(201).json(addedItem);  // Changed 200 to 201 for creation
   } catch (error) {
     console.error("Error in addToCart:", error.message);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
 
 async function getCartController(req, res) {
   try {

@@ -2,7 +2,6 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function addToCart(userId, productId, quantity) {
-  // Check if item exists in cart
   const existingItem = await prisma.cart.findUnique({
     where: {
       userId_productId: { userId, productId }
@@ -10,7 +9,7 @@ async function addToCart(userId, productId, quantity) {
   });
 
   if (existingItem) {
-    // Update quantity
+    // Increment quantity
     return await prisma.cart.update({
       where: { id: existingItem.id },
       data: { quantity: existingItem.quantity + quantity },
@@ -33,9 +32,14 @@ async function getCart(userId) {
 }
 
 async function removeFromCart(userId, productId) {
+  // If your Prisma schema has composite unique key on userId+productId, use delete:
   return await prisma.cart.deleteMany({
     where: { userId, productId }
   });
+  // Or:
+  // return await prisma.cart.delete({
+  //   where: { userId_productId: { userId, productId } }
+  // });
 }
 
 async function updateQuantity(userId, productId, quantity) {
