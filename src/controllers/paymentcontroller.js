@@ -1,36 +1,44 @@
-const paymentService = require('../services/paymentsrvice');
+const paymentService = require("../services/paymentsrvice");
 
-const createPayment = async (req, res) => {
+exports.createPaymentIntent = async (req, res) => {
   try {
-    // Get userId from authenticated user info (set by middleware)
-    const userId = req.user.userId;  
-    const { productId, quantity } = req.body;
+    const userId = req.user.userId;
+    const { orderId } = req.body;
 
-    const paymentData = await paymentService.createPayment(userId, productId, quantity);
-
-    res.json(paymentData);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-const confirmPayment = async (req, res) => {
-  try {
-    const { paymentIntentId, status } = req.body;
-
-    if (!['succeeded', 'failed'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    if (!orderId) {
+      return res.status(400).json({ message: "orderId is required" });
     }
 
-    const payment = await paymentService.updatePaymentStatus(paymentIntentId, status);
-
-    res.json({ message: 'Payment status updated', payment });
+    const result = await paymentService.createPaymentIntent({ userId, orderId });
+    res.status(200).json(result);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error("Payment Intent Error:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
-module.exports = {
-  createPayment,
-  confirmPayment,
+exports.getUserPayments = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const payments = await paymentService.getPaymentsByUser(userId);
+    res.json(payments);
+  } catch (error) {
+    console.error("Get Payments Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getPaymentById = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const paymentId = parseInt(req.params.id, 10);
+    if (isNaN(paymentId)) {
+      return res.status(400).json({ message: "Invalid payment ID" });
+    }
+    const payment = await paymentService.getPaymentById(userId, paymentId);
+    res.json(payment);
+  } catch (error) {
+    console.error("Get Payment Error:", error);
+    res.status(500).json({ message: error.message });
+  }
 };

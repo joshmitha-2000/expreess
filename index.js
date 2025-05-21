@@ -3,8 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const prisma = require('./prisma/prismaclient'); // Prisma client
-const seedAdminUser = require('./prisma/prismaclient'); 
-const Stripe = require('stripe');// Admin seeding
+const seedAdminUser = require('./prisma/prismaclient'); // Admin seeding
 
 const userRoutes = require('./src/routes/userroute');
 const productRoutes = require('./src/routes/productroutes');

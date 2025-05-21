@@ -1,69 +1,83 @@
-const { PrismaClient } = require('@prisma/client');
-const stripe = require('../utils/stripe'); // your stripe setup
-
+require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-async function createPayment(userId, productId, quantity = 1) {
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product || product.stock < quantity) {
-    throw new Error('Product not available or out of stock');
-  }
+async function createPaymentIntent({ userId, orderId }) {
+  // 1. Fetch the order with product
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { product: true },
+  });
 
-  const amount = product.price * quantity;
-
-  const order = await prisma.order.create({
-    data: {
-      userId,
-      productId,
-      amount,
-      quantity,
-      status: 'PENDING',
+  if (!order) throw new Error("Order not found");
+  if (order.userId !== userId) throw new Error("Unauthorized access to order");
+  
+  // 2. Create Stripe PaymentIntent
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(order.amount * 100), // amount in cents
+    currency: "inr",
+    metadata: {
+      orderId: String(order.id),
+      userId: String(userId),
+      productId: String(order.productId),
     },
   });
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(amount * 100),
-    currency: 'inr',
-    metadata: { orderId: order.id.toString() },
-  });
-
+  // 3. Create payment record in DB
   const payment = await prisma.payment.create({
     data: {
       orderId: order.id,
-      razorpayOrderId: paymentIntent.id, // storing stripe paymentIntent id here
-      amount,
-      status: 'created',
+      razorpayOrderId: paymentIntent.id,  // Store Stripe PaymentIntent ID here
+      amount: order.amount,
+      status: "created",
     },
   });
 
   return {
     clientSecret: paymentIntent.client_secret,
+    paymentId: payment.id,
     orderId: order.id,
+    productName: order.product.name,
+    amount: order.amount,
   };
 }
 
-async function updatePaymentStatus(paymentIntentId, status) {
-  const payment = await prisma.payment.update({
-    where: { razorpayOrderId: paymentIntentId },
-    data: { status },
+async function getPaymentsByUser(userId) {
+  return prisma.payment.findMany({
+    where: {
+      order: {
+        userId: userId,
+      },
+    },
+    include: {
+      order: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  });
+}
+
+async function getPaymentById(userId, paymentId) {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: {
+      order: {
+        include: { product: true },
+      },
+    },
   });
 
-  if (status === 'succeeded') {
-    await prisma.order.update({
-      where: { id: payment.orderId },
-      data: { status: 'paid' },
-    });
-  } else if (status === 'failed') {
-    await prisma.order.update({
-      where: { id: payment.orderId },
-      data: { status: 'failed' },
-    });
-  }
+  if (!payment) throw new Error("Payment not found");
+  if (payment.order.userId !== userId) throw new Error("Unauthorized");
 
   return payment;
 }
 
 module.exports = {
-  createPayment,
-  updatePaymentStatus,
+  createPaymentIntent,
+  getPaymentsByUser,
+  getPaymentById,
 };
