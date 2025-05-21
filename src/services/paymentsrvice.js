@@ -4,18 +4,20 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function createPaymentIntent({ userId, orderId }) {
-  // 1. Fetch the order with product
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { product: true },
   });
 
+  console.log("Order fetched in service:", order);
+  console.log("Order userId:", order?.userId, "Type:", typeof order?.userId);
+  console.log("UserId from token:", userId, "Type:", typeof userId);
+
   if (!order) throw new Error("Order not found");
-  if (order.userId !== userId) throw new Error("Unauthorized access to order");
-  
-  // 2. Create Stripe PaymentIntent
+  if (Number(order.userId) !== Number(userId)) throw new Error("Unauthorized access to order");
+
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(order.amount * 100), // amount in cents
+    amount: Math.round(order.amount * 100),
     currency: "inr",
     metadata: {
       orderId: String(order.id),
@@ -24,11 +26,10 @@ async function createPaymentIntent({ userId, orderId }) {
     },
   });
 
-  // 3. Create payment record in DB
   const payment = await prisma.payment.create({
     data: {
       orderId: order.id,
-      razorpayOrderId: paymentIntent.id,  // Store Stripe PaymentIntent ID here
+      razorpayOrderId: paymentIntent.id,
       amount: order.amount,
       status: "created",
     },
@@ -47,7 +48,7 @@ async function getPaymentsByUser(userId) {
   return prisma.payment.findMany({
     where: {
       order: {
-        userId: userId,
+        userId: Number(userId),
       },
     },
     include: {
@@ -71,7 +72,7 @@ async function getPaymentById(userId, paymentId) {
   });
 
   if (!payment) throw new Error("Payment not found");
-  if (payment.order.userId !== userId) throw new Error("Unauthorized");
+  if (Number(payment.order.userId) !== Number(userId)) throw new Error("Unauthorized access to payment");
 
   return payment;
 }
