@@ -1,5 +1,7 @@
 require('dotenv').config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+console.log("🗝️ Stripe Secret Key:",process.env.STRIPE_SECRET_KEY);
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
@@ -8,13 +10,14 @@ async function createPaymentIntent({ userId, orderId }) {
     where: { id: orderId },
     include: { product: true },
   });
-
-  console.log("Order fetched in service:", order);
-  console.log("Order userId:", order?.userId, "Type:", typeof order?.userId);
-  console.log("UserId from token:", userId, "Type:", typeof userId);
-
   if (!order) throw new Error("Order not found");
   if (Number(order.userId) !== Number(userId)) throw new Error("Unauthorized access to order");
+  console.log("🔍 Debug Log:");
+console.log("Fetched Order User ID:", order.userId, typeof order.userId);
+console.log("Token User ID:", userId, typeof userId);
+console.log("Are they equal (==)?", order.userId == userId);
+console.log("Are they strictly equal (===)?", order.userId === userId);
+
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: Math.round(order.amount * 100),
@@ -75,6 +78,7 @@ async function getPaymentById(userId, paymentId) {
   if (Number(payment.order.userId) !== Number(userId)) throw new Error("Unauthorized access to payment");
 
   return payment;
+
 }
 
 module.exports = {
