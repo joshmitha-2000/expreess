@@ -21,11 +21,19 @@ const app = express();
 app.use(express.json());  
 
 
+
 // Middlewares
 const allowedOrigins = [
   'http://localhost:5173', // for local dev
   'https://fresco-frontend.vercel.app' // your deployed frontend
 ];
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/payment/webhook') {
+    next(); // skip body parsing
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 app.use(cors({
   origin: function (origin, callback) {
