@@ -1,54 +1,43 @@
-const paymentService = require("../services/paymentsrvice");
+const {
+  createStripePaymentIntent,
+  updatePaymentStatus,
+} = require("../services/paymentsrvice");
 
-exports.createPaymentIntent = async (req, res) => {
+const createPayment = async (req, res) => {
   try {
-    const userId = req.user?.userId;
     const { orderId } = req.body;
-
-    console.log("createPaymentIntent - userId:", userId);
-    console.log("createPaymentIntent - orderId:", orderId);
-
-    if (!userId || !orderId) {
-      return res.status(400).json({ message: "Missing userId or orderId" });
-    }
-
-    const result = await paymentService.createPaymentIntent({
-      userId: Number(userId),
-      orderId: Number(orderId),
-    });
-
-    return res.status(200).json(result);
+    const clientSecret = await createStripePaymentIntent(orderId);
+    res.json({ clientSecret });
   } catch (err) {
-    console.error("Payment Error:", err.message);
-    return res.status(500).json({ message: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
 
-exports.getPaymentsByUser = async (req, res) => {
-  try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const payments = await paymentService.getPaymentsByUser(Number(userId));
-    return res.json(payments);
+const handleStripeWebhook = async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error("Get payments error:", err.message);
-    return res.status(500).json({ message: err.message });
+    console.log('⚠️ Webhook signature verification failed.', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  if (event.type === "payment_intent.succeeded") {
+    const paymentIntent = event.data.object;
+    await updatePaymentStatus(paymentIntent.id, "paid");
+  } else if (event.type === "payment_intent.payment_failed") {
+    const paymentIntent = event.data.object;
+    await updatePaymentStatus(paymentIntent.id, "failed");
+  }
+
+  res.sendStatus(200);
 };
 
-exports.getPaymentById = async (req, res) => {
-  try {
-    const userId = req.user?.userId;
-    const paymentId = Number(req.params.id);
-
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    if (isNaN(paymentId)) return res.status(400).json({ message: "Invalid payment ID" });
-
-    const payment = await paymentService.getPaymentById(Number(userId), paymentId);
-    return res.json(payment);
-  } catch (err) {
-    console.error("Get payment by id error:", err.message);
-    return res.status(500).json({ message: err.message });
-  }
+module.exports = {
+  createPayment,
+  handleStripeWebhook,
 };

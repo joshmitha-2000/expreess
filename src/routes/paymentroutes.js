@@ -1,10 +1,16 @@
 const express = require("express");
-const router = express.Router();
-const paymentController = require("../controllers/paymentcontroller");
-const authenticateToken = require('../middlewavers/usermiddleware');
+const {
+  createPayment,
+  handleStripeWebhook,
+} = require("../controllers/paymentcontroller");
 
-router.post("/create-intent", authenticateToken, paymentController.createPaymentIntent);
-router.get("/", authenticateToken, paymentController.getPaymentsByUser);
-router.get("/:id", authenticateToken, paymentController.getPaymentById);
+const router = express.Router();
+
+router.post("/create-payment", createPayment);
+router.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  handleStripeWebhook
+);
 
 module.exports = router;
