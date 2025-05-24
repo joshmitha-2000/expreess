@@ -46,7 +46,6 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/api/payments/webhook', paymentRoutes);
 app.use('/', userRoutes);
 app.use(productRoutes);
 app.use('/api/categories', categoryRoutes);
